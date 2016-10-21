@@ -88,7 +88,7 @@ def remote_process_reset():
                            timeout=30)
         command = "/data/Server/Release/Bin/run.sh s && /data/Server/Release/Bin/run.sh r"
         execution = connection.get_transport().open_session()
-        connection.exec_command(command)
+        execution.exec_command(command)
         if execution.recv_exit_status() == 0:
             logging_out(json.dumps(u'执行成功', encoding='UTF-8', ensure_ascii=False))
             return True
