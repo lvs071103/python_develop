@@ -107,7 +107,7 @@ def logging_out(message):
 
 def run():
     while True:
-        time.sleep(3)
+        time.sleep(300)
         process = {}
         process_name = ['GatewayServe', 'PayServer', 'LoginServer']
         for p in process_name:
