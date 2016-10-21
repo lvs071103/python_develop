@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
+
 import sys
 import os
 import subprocess
@@ -39,15 +42,15 @@ def daemon():
 
 
 def statistics():
-    command = "netstat -ant | grep -i '22' | grep ESTABLISHED | wc -l"
+    command = "netstat -ant | grep -i '2001' | grep ESTABLISHED | wc -l"
     number = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE).communicate()[0].split('\n')[0]
-    message = 'port 22 tcp ESTABLISHED number: %s' % number
-    while True:
-        time.sleep(5)
-        logging.basicConfig(level=logging.INFO, filename="/tmp/statistics.log", filemode="a+",
-                            format="%(asctime)-15s %(levelname)-8s %(message)s")
-        logging.info(message)
+    message = 'port 2001 tcp ESTABLISHED number: %s' % number
+    return message
 
 if __name__ == '__main__':
     daemon()
-    statistics()
+    while True:
+        time.sleep(300)
+        logging.basicConfig(level=logging.INFO, filename="/tmp/statistics.log", filemode="a+",
+                            format="%(asctime)-15s %(levelname)-8s %(message)s")
+        logging.info(statistics())
