@@ -4,13 +4,11 @@
 
 import os
 import sys
-import psutil
 import subprocess
 import time
 from subprocess import CalledProcessError
 from subprocess import check_output
 import logging
-import paramiko
 import json
 
 
@@ -49,26 +47,30 @@ def daemon():
 
 def check_process_exists(name):
     zone_list = []
-    command = "ps aux|grep %s|grep -v grep|awk '{print $12}'" % name
+    command = "ps aux | grep %s | grep -v grep | grep -v '/bin/sh'| awk '{print $12}'" % name
     stdout = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True).communicate()[0]
     for line in stdout.split('\n'):
         if line:
-            messages = json.dumps("进程参数%s OK", ensure_ascii=False, encoding='UTF-8') % line
-            logging_out(messages)
             zone_list.append(line)
     return zone_list
 
 def get_pid(name):
-    return map(int, check_output(["pidof", name]).split())
-
+    try:
+        command = "pidof %s" % name
+        return map(int, check_output(command, shell=True, stderr=subprocess.STDOUT).split())        
+    except subprocess.CalledProcessError as e:
+        # raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
+        return False
 
 def reset_service(name, number):
-    command = "cd /data/Server/Release/Bin && ./%s %d >/data/logs/fight_%d.log 2>&1 &" % (name, number, number)
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-    process.wait()
-    message =  process.returncode
-    logging_out(json.dumps("进程返回状态: %s", ensure_ascii=False, encoding='UTF-8') % message)
-
+    command = "cd /data/Server/Release/Bin && nohup ./%s %d 2>&1 > /data/logs/%s_%d.log &" % (name, number, name, number)
+    try:
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        process.wait()
+        message =  process.returncode
+    except subprocess.CalledProcessError as e:
+        message = e.returncode
+    return message
 
 def logging_out(message):
     logging.basicConfig(level=logging.INFO, filename="/tmp/Automatic_pull_up.log", filemode="a+",
@@ -77,17 +79,29 @@ def logging_out(message):
 
 
 def run():
+    p_name = 'FightServer2'
     while True:
         time.sleep(30)
-        p_name = 'FightServer2'
-        messages = "FightServer2进程ID列表: %s" % get_pid(p_name)
-        logging_out(json.dumps(messages, ensure_ascii=False, encoding='UTF-8'))
-        if len(get_pid(p_name)) != 3 and len(get_pid(p_name)) < 3:
+        if not get_pid(p_name):
+            for item in ['1', '2', '3']:
+                if reset_service(p_name, int(item)) == 0:
+                    logging_out(json.dumps("%s %d进程启动成功" % (p_name, int(item)), ensure_ascii=False, encoding='UTF-8'))
+                else:
+                    logging_out(json.dumps("%s %d进程启动成功" % (p_name, int(item)), ensure_ascii=False, encoding='UTF-8'))
+        if len(get_pid(p_name)) == 3:
+            messages = "FightServer2进程ID列表: %s" % get_pid(p_name)
+            logging_out(json.dumps(messages, ensure_ascii=False, encoding='UTF-8'))
+
+        elif len(get_pid(p_name)) > 0 and len(get_pid(p_name)) < 3:
             logging_out(json.dumps("进程数量异常,3秒后自动拉起", ensure_ascii=False, encoding='UTF-8'))
-            for item in check_process_exists(p_name):
-                if item not in ['1', '2', '3']:
-                    sleep(3)
-                    reset_service(p_name, int(item))
+            for item in ['1', '2', '3']:
+                if item not in check_process_exists(p_name):
+                    if reset_service(p_name, int(item)) == 0:
+                        logging_out(json.dumps("自动拉起%s %d进程成功" % (p_name, int(item)), ensure_ascii=False, encoding='UTF-8'))
+                    else:
+                        logging_out(json.dumps("自动拉起%s %d进程失败" % (p_name, int(item)), ensure_ascii=False, encoding='UTF-8'))
+        else:
+            logging_out(json.dumps("进程数大于3，有可能重复启动" % (p_name, int(item)), ensure_ascii=False, encoding='UTF-8'))
 
 if __name__ == '__main__':
     daemon()
